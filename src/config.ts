@@ -33,13 +33,17 @@ const DEFAULT_CONFIG: Config = {
 export function loadConfig(): Config {
   const rcConfig: RcConfig = rc('gitlab-search');
   
-  return {
+  const result = {
     domain: rcConfig.domain || DEFAULT_CONFIG.domain,
     token: rcConfig.token || DEFAULT_CONFIG.token,
     ignoreSSL: rcConfig.ignoreSSL !== undefined ? rcConfig.ignoreSSL : DEFAULT_CONFIG.ignoreSSL,
     protocol: rcConfig.protocol === 'http' ? Protocol.HTTP : Protocol.HTTPS,
     concurrency: rcConfig.concurrency || DEFAULT_CONFIG.concurrency
   };
+  if(process.env['DEBUG']) {
+    console.log('Loaded configuration:', result);
+  }
+  return result as Config;
 }
 
 export function validateConfig(config: Config): void {

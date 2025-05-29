@@ -68,19 +68,40 @@ export class GitLabAPI {
         let hasMore = true;
 
         while (hasMore) {
-          const response: AxiosResponse<Project[]> = await this.client.get(`/groups/${group.id}/projects`, {
-            params: {
-              page,
-              per_page: 100,
-              archived: includeArchived ? undefined : false
+          try {
+            const response: AxiosResponse<Project[]> = await this.client.get(`/groups/${group.id}/projects`, {
+              params: {
+                page,
+                per_page: 100,
+                archived: includeArchived ? undefined : false
+              }
+            });
+
+            const projects = response.data;
+            allProjects.push(...projects);
+
+            hasMore = projects.length === 100;
+            page++;
+          } catch (error) {
+            if (DEBUG) {
+              console.warn(`Failed to fetch page ${page} for group ${group.name}:`, error);
             }
-          });
-
-          const projects = response.data;
-          allProjects.push(...projects);
-
-          hasMore = projects.length === 100;
-          page++;
+            // 如果某一页失败，跳过这一页继续下一页
+            // 但如果是第一页就失败，说明可能是权限或网络问题，停止该组的获取
+            if (page === 1) {
+              console.warn(`Failed to fetch first page for group ${group.name}, skipping this group`);
+              hasMore = false;
+            } else {
+              // 对于非第一页的失败，我们假设已经到达了最后一页或网络临时问题
+              // 可以选择继续尝试下一页或停止
+              page++;
+              // 设置最大重试次数避免无限循环
+              if (page > 1000) { // 设置合理的页数上限
+                console.warn(`Reached maximum page limit for group ${group.name}`);
+                hasMore = false;
+              }
+            }
+          }
         }
       } catch (error) {
         console.warn(`Failed to fetch projects for group ${group.name}:`, error);

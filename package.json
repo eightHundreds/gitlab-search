@@ -1,6 +1,6 @@
 {
-  "name": "gitlab-search",
-  "version": "1.5.0",
+  "name": "@aoligie/gitlab-search",
+  "version": "1.5.2",
   "description": "Command line tool to search for contents across all your GitLab repositories",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -11,7 +11,8 @@
     "clean": "rimraf dist",
     "prepublish": "pnpm run build",
     "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "prepublishOnly": "pnpm run clean && pnpm run build"
   },
   "keywords": [
     "GitLab",
@@ -19,9 +20,9 @@
     "cli",
     "typescript"
   ],
-  "author": "Phillip Johnsen <johphi@gmail.com>",
+  "author": "EightHundreds",
   "license": "MIT",
-  "repository": "github:phillipj/gitlab-search",
+  "repository": "github:eightHundreds/gitlab-search",
   "files": [
     "bin",
     "dist"
