@@ -1,6 +1,6 @@
 {
   "name": "@aoligie/gitlab-search",
-  "version": "1.5.2",
+  "version": "1.5.3",
   "description": "Command line tool to search for contents across all your GitLab repositories",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
