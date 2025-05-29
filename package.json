@@ -1,14 +1,23 @@
 {
   "name": "gitlab-search",
   "version": "1.5.0",
+  "description": "Command line tool to search for contents across all your GitLab repositories",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "build": "rimraf dist && bsb -make-world && ncc build lib/js/src/Main.bs.js --out dist",
-    "start": "bsb -make-world -w",
-    "clean": "bsb -clean-world",
-    "prepublish": "npm run build"
+    "build": "rimraf dist && tsc",
+    "dev": "tsc --watch",
+    "start": "node dist/index.js",
+    "clean": "rimraf dist",
+    "prepublish": "pnpm run build",
+    "lint": "eslint src/**/*.ts",
+    "lint:fix": "eslint src/**/*.ts --fix"
   },
   "keywords": [
-    "GitLab"
+    "GitLab",
+    "search",
+    "cli",
+    "typescript"
   ],
   "author": "Phillip Johnsen <johphi@gmail.com>",
   "license": "MIT",
@@ -18,14 +27,23 @@
     "dist"
   ],
   "bin": "bin/gitlab-search.js",
+  "dependencies": {
+    "axios": "^1.6.0",
+    "chalk": "^4.1.2",
+    "commander": "^11.0.0",
+    "rc": "^1.2.8"
+  },
   "devDependencies": {
-    "@glennsl/bs-json": "^5.0.2",
-    "@zeit/ncc": "^0.22.0",
-    "bs-axios": "0.0.43",
-    "bs-chalk": "^0.2.1",
-    "bs-platform": "^5.2.1",
-    "commander": "^5.0.0",
-    "rc": "^1.2.8",
-    "rimraf": "^3.0.2"
-  }
+    "@types/node": "^20.0.0",
+    "@types/rc": "^1.2.1",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "eslint": "^8.0.0",
+    "rimraf": "^5.0.0",
+    "typescript": "^5.0.0"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "packageManager": "pnpm@8.0.0"
 }
