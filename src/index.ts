@@ -2,10 +2,10 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { loadConfig, validateConfig, Protocol } from './config';
+import { loadConfig, validateConfig, Protocol, writeToFile, defaultDirectory, defaultDomain, defaultConcurrency } from './config';
 import { GitLabAPI } from './gitlab';
-import { printSearchResults } from './print';
-import { createProgram, parseFilters, CommandOptions } from './commander';
+import { printSearchResults, printSuccessful } from './print';
+import { createProgram, createSetupCommand, parseFilters, CommandOptions, SetupCommandOptions } from './commander';
 import { SearchCriteria } from './types';
 
 async function main(): Promise<void> {
@@ -17,6 +17,7 @@ async function main(): Promise<void> {
     // Setup commander
     const program = createProgram(packageJson.version);
 
+    // Add search command action
     program.action(async (searchTerm: string, options: CommandOptions) => {
       try {
         // Load and merge configuration
@@ -78,7 +79,35 @@ async function main(): Promise<void> {
       }
     });
 
+    // Add setup command
+    const setupCommand = createSetupCommand(program);
+    setupCommand.action(async (token: string, options: SetupCommandOptions) => {
+      try {
+        const configPath = writeToFile({
+          domainOrRootUri: options.apiDomain || defaultDomain,
+          ignoreSSL: options.ignoreSsl || false,
+          token,
+          directory: options.dir || defaultDirectory,
+          concurrency: options.concurrency ? parseInt(String(options.concurrency), 10) : defaultConcurrency,
+        });
+
+        printSuccessful(
+          `Successfully wrote config to ${configPath}, gitlab-search is now ready to be used`
+        );
+      } catch (error) {
+        console.error('Error:', error instanceof Error ? error.message : String(error));
+        process.exit(1);
+      }
+    });
+
     // Parse command line arguments
+    const args = program.parseOptions(process.argv);
+    
+    // Display help when no arguments are provided (matching original behavior)
+    if (args.unknown.length === 0 && process.argv.length <= 2) {
+      program.help();
+    }
+
     await program.parseAsync();
 
   } catch (error) {

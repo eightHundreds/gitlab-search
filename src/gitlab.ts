@@ -7,11 +7,8 @@ const DEBUG = process.env['DEBUG'];
 
 export class GitLabAPI {
   private client: AxiosInstance;
-  private config: Config;
 
   constructor(config: Config) {
-    this.config = config;
-    
     const baseURL = `${config.protocol}://${config.domain}/api/v4`;
     
     this.client = axios.create({
@@ -40,26 +37,37 @@ export class GitLabAPI {
 
   async fetchGroups(groupIds?: string): Promise<Group[]> {
     if (!groupIds) {
-      const response: AxiosResponse<Group[]> = await this.client.get('/groups');
-      return response.data;
-    }
+      // Fetch all groups with pagination
+      let page = 1;
+      let hasMore = true;
+      const allGroups: Group[] = [];
 
-    const ids = groupIds.split(',').map(id => id.trim());
-    const groups: Group[] = [];
+      while (hasMore) {
+        const response: AxiosResponse<Group[]> = await this.client.get('/groups', {
+          params: {
+            page,
+            per_page: 100
+          }
+        });
 
-    for (const id of ids) {
-      try {
-        const response: AxiosResponse<Group> = await this.client.get(`/groups/${id}`);
-        groups.push(response.data);
-      } catch (error) {
-        console.warn(`Failed to fetch group ${id}:`, error);
+        const groups = response.data;
+        allGroups.push(...groups);
+        hasMore = groups.length === 100;
+        page++;
       }
+
+      return allGroups;
     }
 
-    return groups;
+    // For specified group IDs, create group objects directly like in original code
+    const ids = groupIds.split(',').map(id => id.trim());
+    return ids.map(id => ({
+      id,
+      name: id // Use ID as name since we don't need to fetch from API
+    }));
   }
 
-  async fetchProjectsInGroups(groups: Group[], includeArchived: boolean = false): Promise<Project[]> {
+  async fetchProjectsInGroups(groups: Group[], archiveMode?: 'all' | 'only' | 'exclude' | boolean): Promise<Project[]> {
     const allProjects: Project[] = [];
 
     for (const group of groups) {
@@ -69,11 +77,23 @@ export class GitLabAPI {
 
         while (hasMore) {
           try {
+            let archived: boolean | undefined;
+            
+            // Handle different archive modes to match original functionality
+            if (archiveMode === 'only' || archiveMode === true) {
+              archived = true;
+            } else if (archiveMode === 'exclude' || archiveMode === false) {
+              archived = false;
+            } else {
+              // 'all' mode or undefined - include both archived and non-archived
+              archived = undefined;
+            }
+
             const response: AxiosResponse<Project[]> = await this.client.get(`/groups/${group.id}/projects`, {
               params: {
                 page,
                 per_page: 100,
-                archived: includeArchived ? undefined : false
+                archived
               }
             });
 
@@ -113,30 +133,32 @@ export class GitLabAPI {
 
   async searchInProject(project: Project, criteria: SearchCriteria): Promise<SearchResult[]> {
     try {
-      const params: Record<string, string> = {
-        scope: 'blobs',
-        search: criteria.term
-      };
-
-      // Apply filters
+      // Build search parameters similar to original implementation
+      const searchFilters: string[] = [];
+      
       criteria.filters.forEach(filter => {
         if (filter.value) {
           switch (filter.type) {
             case 'filename':
-              params['filename'] = filter.value;
+              searchFilters.push(`filename:${encodeURIComponent(filter.value)}`);
               break;
             case 'extension':
-              params['filename'] = `*.${filter.value}`;
+              searchFilters.push(`extension:${encodeURIComponent(filter.value)}`);
               break;
             case 'path':
-              params['filename'] = `*${filter.value}*`;
+              searchFilters.push(`path:${encodeURIComponent(filter.value)}`);
               break;
           }
         }
       });
 
+      const searchQuery = [criteria.term, ...searchFilters].join(' ');
+
       const response: AxiosResponse<SearchResult[]> = await this.client.get(`/projects/${project.id}/search`, {
-        params
+        params: {
+          scope: 'blobs',
+          search: searchQuery
+        }
       });
 
       return response.data;
@@ -149,29 +171,18 @@ export class GitLabAPI {
   }
 
   async searchInProjects(projects: Project[], criteria: SearchCriteria): Promise<ProjectSearchResults[]> {
-    const results: ProjectSearchResults[] = [];
-    const concurrentRequests: Promise<void>[] = [];
-    let index = 0;
-
-    const processProject = async (project: Project): Promise<void> => {
+    // Create promises for all projects, similar to the original implementation
+    const searchPromises = projects.map(async (project): Promise<ProjectSearchResults | null> => {
       const searchResults = await this.searchInProject(project, criteria);
       if (searchResults.length > 0) {
-        results.push([project, searchResults]);
+        return [project, searchResults];
       }
-    };
+      return null;
+    });
 
-    while (index < projects.length) {
-      const batch = projects.slice(index, index + this.config.concurrency);
-      
-      for (const project of batch) {
-        concurrentRequests.push(processProject(project));
-      }
-
-      await Promise.all(concurrentRequests);
-      concurrentRequests.length = 0;
-      index += this.config.concurrency;
-    }
-
-    return results;
+    const results = await Promise.all(searchPromises);
+    
+    // Filter out null results (projects with no search results)
+    return results.filter((result): result is ProjectSearchResults => result !== null);
   }
 }

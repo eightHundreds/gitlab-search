@@ -36,3 +36,7 @@ export function printSearchResults(term: string, results: ProjectSearchResults[]
     console.log(chalk.blue(`\nFound ${totalResults} results in ${projectCount} project(s)`));
   }
 }
+
+export function printSuccessful(message: string): void {
+  console.log(chalk.green(message));
+}
